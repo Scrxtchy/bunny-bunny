@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+
+<head>
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+	<script src="https://www.google.com/recaptcha/api.js?render=THE_OTHER_CAPTCHA_KEY"></script>
+	<style>
+		.entry{
+			margin:20px;
+			border-radius:10px;
+			background-color:lightgray;
+			padding:10px;
+		}
+		.entry:hover{
+			cursor:pointer;
+			background-color:lightgreen;
+		}
+
+		form {
+  width: 100%;
+  padding: 15px;
+  margin: 0 auto;
+}
+
+form checkbox {
+  font-weight: 400;
+}
+form input {
+  position: relative;
+  box-sizing: border-box;
+  height: auto;
+  padding: 10px;
+  font-size: 16px;
+}
+
+form select {
+	max-width:350px;
+}
+
+div.fg {
+	padding: 20px;
+	border-radius:20px;
+	margin-top: auto;
+  margin-bottom: auto;
+}
+
+form div {
+	padding-bottom: 1em;
+}
+
+
+
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: 40px;
+  padding-bottom: 40px;
+	background-color: var(--background);
+}
+
+div.fg {
+	background-color: #f5f5f5;
+	padding: 20px;
+	border-radius:20px;
+}
+
+em:hover {
+	text-decoration: underline;
+	cursor: pointer
+}
+
+	</style>
+</head>
+
+<body>
+	<div class="fg text-center">
+		<img class="mb-4" src="https://cdn.discordapp.com/avatars/{{user['id']}}/{{user['avatar']}}.png" alt="Your Discord Avatar">
+		<h3 class="mb-3 font-weight-normal">Add <em onclick="navigator.clipboard.writeText({{user['id']}})" title="Click to Copy">{{user['id']}}</em> to your <a href="https://eu.finalfantasyxiv.com/lodestone/my/setting/profile/" target="_blank">Lodestone Profile</a> to verify</h1>
+
+			<input type="hidden" name="code" value="{{code}}" required />
+
+			<div>
+				<label for="region">Region: </label>
+				<select name="region" required>
+				<option value="-1">Select Area</option>
+				{% for dc in (worlds.keys() | list)[:-4] %}
+				{% if dc != "Korea" %}
+				<optgroup label="{{dc}}">
+				{% for world in worlds[dc] %}
+				<option value="{{world}}">{{world}}</option>
+				{% endfor %}
+				{% endif %}
+				</optgroup>
+				{% endfor %}
+				</select>
+			</div>
+			<div>
+				<label for="name">Enter Your Name: </label>
+				<input type="text" name="name" required />
+			</div>
+			<div>
+				<input type="submit" value="Search" onclick="search()" />
+			</div>
+	
+<div class="fd">
+
+
+</div>
+</div>
+</body>
+
+<script>
+
+function validateCaptcha() {
+    return new Promise((res, rej) => {
+      grecaptcha.ready(() => {
+              grecaptcha.execute('THE_OTHER_CAPTCHA_KEY', {action: 'mvo'}).then((token) => {
+                  return res(token);
+              })
+      })
+    })
+}
+
+const da = document.querySelector("div.fd")
+document.querySelector("input[name='name']").addEventListener("keypress", function(e){
+	if (e.key === "Enter"){
+		search()
+	}
+})
+
+async function search(){
+	area = document.querySelector("select[name='region']").value
+	name = document.querySelector("input[name='name']").value
+	if (area == -1){
+		alert("Invalid Area")
+		return
+	}
+
+	const fd = new FormData();
+	fd.append("name", name)
+	fd.append("world", area)
+
+	fd.append("gc", await this.validateCaptcha())
+	const response = await fetch(`/search`, {method:"POST", body: fd});
+	res = (await response.json())
+
+	let list = document.createElement("div")
+	list.style="display: flex;flex-wrap: wrap;"
+
+	  		for (const v of res){
+  			let entry = document.createElement("div")
+  			entry.classList.add("entry")
+  			entry.setAttribute("lid", v[1])
+  			entry.innerHTML = `<img src=${v[2]}/> ${v[0]}</strong>`
+ 			entry.addEventListener("click", (event) => {
+				verify(event.currentTarget.getAttribute("lid"))
+			})
+  			list.appendChild(entry)
+  		}
+  	da.replaceChildren(list)
+
+}
+
+async function verify(id){
+	const fd = new FormData();
+	fd.append("code", document.querySelector("input[name='code']").value)
+	fd.append("character", id)
+
+	fd.append("gc", await this.validateCaptcha())
+
+	const response = await fetch(`/link`, {method:"POST", body: fd});
+	res = (await response.json())
+	console.log(res)
+	if (Object.keys(res).includes("err")){
+		if (res.err.includes("Auth ID not found")){
+			if (confirm(res.err + "\nPress OK to open Profile"))
+				window.open(`https://eu.finalfantasyxiv.com/lodestone/my/setting/profile/`, "_blank");
+		} else {
+		alert("ERROR: " + res.err)
+		}
+	} else {
+		alert(res.msg)
+	}
+
+</script>
+
+</html>
